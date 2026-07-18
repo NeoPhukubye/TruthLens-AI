@@ -4,6 +4,10 @@
 
 Empowering youth to verify, understand, and critically evaluate digital information.
 
+## Hackathon
+
+Built for the **UNESCO Media and Information Literacy (MIL) Hackathon**.
+
 ## Overview
 
 TruthLens AI is a Media & Information Literacy platform that teaches users *why* something is trustworthy or suspicious, not just a binary verdict. It combines AI-powered analysis with educational content to build critical thinking skills.
