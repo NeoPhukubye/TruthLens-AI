@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Shield, Eye, CheckCircle } from 'lucide-react'
+import { Search, Shield, Eye, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react'
+import { useI18n } from '../hooks/useI18n'
+import { speak } from '../hooks/useVoice'
 
 interface AnalysisResult {
   claims: { claim: string; importance: string }[]
@@ -11,6 +13,7 @@ interface AnalysisResult {
 }
 
 export default function Analyze() {
+  const { t, language } = useI18n()
   const [content, setContent] = useState('')
   const [contentType, setContentType] = useState('article')
   const [loading, setLoading] = useState(false)
@@ -27,25 +30,30 @@ export default function Analyze() {
       })
       const data = await res.json()
       setResult(data)
+      speak(`Analysis complete. Found ${data.claims.length} claims. ${data.summary}`, language)
     } catch {
-      console.error('Analysis failed')
+      speak(t.common.error, language)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-bold mb-2">Analyze Content</h1>
-      <p className="text-gray-600 mb-8">Paste any article, tweet, or message to extract claims and evaluate credibility.</p>
+    <div className="max-w-5xl mx-auto px-4 py-12">
+      <div className="mb-10">
+        <h1 className="section-title mb-2">{t.analyze.title}</h1>
+        <p className="text-dark-200 text-lg">{t.analyze.subtitle}</p>
+      </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-        <div className="flex gap-2 mb-4">
+      <div className="card p-6 mb-8">
+        <div className="flex gap-2 mb-5 flex-wrap">
           {['article', 'tweet', 'post', 'message', 'blog'].map((type) => (
             <button
               key={type}
               onClick={() => setContentType(type)}
-              className={`px-3 py-1 rounded-full text-sm capitalize ${contentType === type ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+              className={`px-4 py-1.5 rounded-full text-sm capitalize transition-all duration-200 ${
+                contentType === type ? 'bg-accent-blue text-white shadow-glow-sm' : 'bg-dark-600 text-dark-100 hover:bg-dark-500'
+              }`}
             >
               {type}
             </button>
@@ -54,51 +62,80 @@ export default function Analyze() {
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Paste your content here..."
+          placeholder={t.analyze.placeholder}
           rows={8}
-          className="w-full border border-gray-300 rounded-lg p-4 resize-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          className="input-dark w-full resize-none font-mono text-sm"
+          aria-label={t.analyze.placeholder}
         />
         <button
           onClick={handleAnalyze}
           disabled={loading || !content.trim()}
-          className="mt-4 bg-primary-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 transition flex items-center gap-2"
+          className="btn-primary mt-4 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <Search className="h-4 w-4" />
-          {loading ? 'Analyzing...' : 'Analyze'}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+          {loading ? t.analyze.analyzing : t.analyze.button}
         </button>
       </div>
 
       {result && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold mb-2 flex items-center gap-2"><Shield className="h-5 w-5 text-primary-600" /> Summary</h2>
-            <p className="text-gray-700">{result.summary}</p>
+          {/* Summary */}
+          <div className="card p-6 border-l-4 border-accent-blue">
+            <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+              <Shield className="h-5 w-5 text-accent-blue" /> Summary
+            </h2>
+            <p className="text-dark-100 leading-relaxed">{result.summary}</p>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-600" /> Claims Extracted</h2>
-            <ul className="space-y-2">
+          {/* Claims */}
+          <div className="card p-6">
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-accent-cyan" /> Claims Extracted
+              <span className="badge-blue ml-auto">{result.claims.length} found</span>
+            </h2>
+            <div className="space-y-3">
               {result.claims.map((c, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className={`text-xs px-2 py-0.5 rounded-full mt-1 ${c.importance === 'high' ? 'bg-red-100 text-red-700' : c.importance === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
+                <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-dark-700/50">
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium mt-0.5 ${
+                    c.importance === 'high' ? 'badge-red' : c.importance === 'medium' ? 'badge-amber' : 'bg-dark-500 text-dark-100'
+                  }`}>
                     {c.importance}
                   </span>
-                  <span className="text-gray-700">{c.claim}</span>
-                </li>
+                  <span className="text-dark-100 text-sm">{c.claim}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
 
-          {result.entities.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Eye className="h-5 w-5 text-purple-600" /> Entities</h2>
-              <div className="flex flex-wrap gap-2">
-                {result.entities.map((e, i) => (
-                  <span key={i} className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-sm">{e}</span>
-                ))}
+          {/* Entities & Stats */}
+          <div className="grid md:grid-cols-2 gap-6">
+            {result.entities.length > 0 && (
+              <div className="card p-6">
+                <h2 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-accent-purple" /> Entities
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {result.entities.map((e, i) => (
+                    <span key={i} className="bg-accent-purple/10 text-accent-purple border border-accent-purple/20 px-3 py-1 rounded-full text-xs">{e}</span>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+            {result.statistics.length > 0 && (
+              <div className="card p-6">
+                <h2 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-accent-amber" /> Statistics Mentioned
+                </h2>
+                <ul className="space-y-1.5">
+                  {result.statistics.map((s, i) => (
+                    <li key={i} className="text-dark-100 text-sm flex items-start gap-2">
+                      <span className="text-accent-amber mt-1">&#8226;</span>{s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </motion.div>
       )}
     </div>

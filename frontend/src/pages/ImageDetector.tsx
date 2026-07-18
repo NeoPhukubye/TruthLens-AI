@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Upload, Camera, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
+import { Upload, Camera, CheckCircle, XCircle, AlertTriangle, Loader2, Info } from 'lucide-react'
 import { useI18n } from '../hooks/useI18n'
 import { speak } from '../hooks/useVoice'
 
@@ -11,6 +11,8 @@ interface ImageResult {
   manipulation_likelihood: string
   metadata_notes: string[]
   explanation: string
+  detection_methods_used?: string[]
+  what_to_look_for?: string[]
 }
 
 export default function ImageDetector() {
@@ -44,9 +46,8 @@ export default function ImageDetector() {
       const res = await fetch('/api/images/analyze', { method: 'POST', body: formData })
       const data = await res.json()
       setResult(data)
-      // Read result aloud for blind users
       const verdict = data.is_likely_ai_generated ? t.imageDetector.aiGenerated : t.imageDetector.realPhoto
-      speak(`${verdict}. ${t.imageDetector.confidence}: ${Math.round(data.confidence * 100)}%. ${data.explanation}`, language)
+      speak(`${verdict}. ${t.imageDetector.confidence}: ${Math.round(data.confidence * 100)}%.`, language)
     } catch {
       speak(t.common.error, language)
     } finally {
@@ -56,13 +57,13 @@ export default function ImageDetector() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-bold mb-2">{t.imageDetector.title}</h1>
-      <p className="text-gray-600 mb-8">{t.imageDetector.subtitle}</p>
+      <h1 className="section-title mb-2">{t.imageDetector.title}</h1>
+      <p className="text-dark-200 text-lg mb-8">{t.imageDetector.subtitle}</p>
 
       <div
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-primary-400 transition cursor-pointer"
+        className="card border-2 border-dashed border-dark-400 hover:border-accent-blue/50 p-16 text-center cursor-pointer transition-all duration-300 group"
         onClick={() => fileRef.current?.click()}
         role="button"
         aria-label={t.imageDetector.upload}
@@ -77,68 +78,89 @@ export default function ImageDetector() {
           onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
         />
         {preview ? (
-          <img src={preview} alt="Upload preview" className="max-h-64 mx-auto rounded-lg" />
+          <img src={preview} alt="Upload preview" className="max-h-72 mx-auto rounded-lg shadow-card" />
         ) : (
-          <div className="space-y-3">
-            <Upload className="h-12 w-12 text-gray-400 mx-auto" />
-            <p className="text-gray-500">{t.imageDetector.upload}</p>
-            <p className="text-sm text-gray-400">Drag & drop or click to browse</p>
+          <div className="space-y-4">
+            <div className="inline-flex p-4 rounded-2xl bg-dark-600 group-hover:bg-accent-blue/10 transition">
+              <Upload className="h-10 w-10 text-dark-300 group-hover:text-accent-blue transition" />
+            </div>
+            <p className="text-dark-100 font-medium">{t.imageDetector.upload}</p>
+            <p className="text-sm text-dark-300">Drag & drop or click to browse (JPG, PNG, WebP)</p>
           </div>
         )}
       </div>
 
       {file && (
-        <button
-          onClick={analyzeImage}
-          disabled={loading}
-          className="mt-6 bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 transition flex items-center gap-2 mx-auto"
-          aria-live="polite"
-        >
-          <Camera className="h-5 w-5" />
-          {loading ? t.imageDetector.analyzing : t.analyze.button}
-        </button>
+        <div className="flex justify-center mt-6">
+          <button onClick={analyzeImage} disabled={loading} className="btn-primary inline-flex items-center gap-2 text-lg px-8 py-3">
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
+            {loading ? t.imageDetector.analyzing : 'Analyze Image'}
+          </button>
+        </div>
       )}
 
       {result && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8 space-y-6" role="region" aria-live="polite" aria-label="Analysis results">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-10 space-y-6" aria-live="polite">
           {/* Verdict */}
-          <div className={`rounded-xl p-6 border-2 ${result.is_likely_ai_generated ? 'border-red-300 bg-red-50' : 'border-green-300 bg-green-50'}`}>
+          <div className={`card p-6 border-l-4 ${result.is_likely_ai_generated ? 'border-accent-red' : 'border-accent-cyan'}`}>
             <div className="flex items-center gap-3 mb-3">
               {result.is_likely_ai_generated ? (
-                <XCircle className="h-8 w-8 text-red-600" />
+                <XCircle className="h-7 w-7 text-accent-red" />
               ) : (
-                <CheckCircle className="h-8 w-8 text-green-600" />
+                <CheckCircle className="h-7 w-7 text-accent-cyan" />
               )}
-              <h2 className="text-xl font-bold">
+              <h2 className="text-xl font-bold text-white">
                 {result.is_likely_ai_generated ? t.imageDetector.aiGenerated : t.imageDetector.realPhoto}
               </h2>
             </div>
-            <p className="text-lg">
-              {t.imageDetector.confidence}: <strong>{Math.round(result.confidence * 100)}%</strong>
-            </p>
+            <div className="flex items-center gap-4">
+              <div className="flex-1 bg-dark-700 rounded-full h-3 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${result.is_likely_ai_generated ? 'bg-accent-red' : 'bg-accent-cyan'}`}
+                  style={{ width: `${result.confidence * 100}%` }}
+                />
+              </div>
+              <span className="text-white font-mono font-bold">{Math.round(result.confidence * 100)}%</span>
+            </div>
           </div>
 
           {/* Indicators */}
           {result.indicators.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-600" /> Indicators Found
+            <div className="card p-6">
+              <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-accent-amber" /> Indicators Detected
+              </h3>
+              <div className="space-y-2">
+                {result.indicators.map((ind, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-dark-700/50">
+                    <span className="text-accent-amber mt-0.5">&#9679;</span>
+                    <span className="text-dark-100 text-sm">{ind}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* What to Look For */}
+          {result.what_to_look_for && result.what_to_look_for.length > 0 && (
+            <div className="card p-6 border-accent-cyan/20">
+              <h3 className="font-semibold text-accent-cyan mb-4 flex items-center gap-2">
+                <Info className="h-5 w-5" /> How to Spot This Yourself
               </h3>
               <ul className="space-y-2">
-                {result.indicators.map((ind, i) => (
-                  <li key={i} className="flex items-start gap-2 text-gray-700">
-                    <span className="text-yellow-500 mt-1">&#9679;</span>
-                    {ind}
+                {result.what_to_look_for.map((tip, i) => (
+                  <li key={i} className="text-dark-100 text-sm flex items-start gap-2">
+                    <span className="text-accent-cyan font-bold">{i + 1}.</span>{tip}
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          {/* Explanation (Learn Mode) */}
-          <div className="bg-blue-50 rounded-xl border border-blue-200 p-6">
-            <h3 className="font-semibold text-blue-800 mb-2">How to spot this yourself</h3>
-            <p className="text-blue-700">{result.explanation}</p>
+          {/* Explanation */}
+          <div className="card p-6 border-accent-blue/20">
+            <h3 className="font-semibold text-accent-blue mb-2">Analysis Explanation</h3>
+            <p className="text-dark-100 leading-relaxed">{result.explanation}</p>
           </div>
         </motion.div>
       )}
