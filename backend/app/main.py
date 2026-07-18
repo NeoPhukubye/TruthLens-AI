@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.api.routes import auth, analyze, credibility, bias, factcheck, images, sources, learn, quiz
+from app.api.routes import auth, analyze, credibility, bias, factcheck, images, sources, learn, quiz, debates
 
 settings = get_settings()
 
@@ -29,6 +29,7 @@ app.include_router(images.router, prefix="/api/images", tags=["Image Analysis"])
 app.include_router(sources.router, prefix="/api/sources", tags=["Source Quality"])
 app.include_router(learn.router, prefix="/api/learn", tags=["Learn Mode"])
 app.include_router(quiz.router, prefix="/api/quiz", tags=["Quiz Mode"])
+app.include_router(debates.router, prefix="/api/debates", tags=["Live Debates"])
 
 
 @app.get("/api/health")
