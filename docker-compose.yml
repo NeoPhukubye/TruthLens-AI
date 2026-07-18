@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: truthlens
+      POSTGRES_PASSWORD: truthlens
+      POSTGRES_DB: truthlens
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://truthlens:truthlens@db:5432/truthlens
+      AI_API_KEY: ${AI_API_KEY}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.fireworks.ai/inference/v1}
+      AI_MODEL: ${AI_MODEL:-accounts/fireworks/models/llama-v3p1-70b-instruct}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
