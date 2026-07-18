@@ -1,28 +1,47 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Playfair Display', 'Georgia', 'serif'],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+      },
       colors: {
-        primary: {
-          50: "#eff6ff",
-          100: "#dbeafe",
-          200: "#bfdbfe",
-          300: "#93c5fd",
-          400: "#60a5fa",
-          500: "#3b82f6",
-          600: "#2563eb",
-          700: "#1d4ed8",
-          800: "#1e40af",
-          900: "#1e3a8a",
+        dark: {
+          900: '#0a0a0f',
+          800: '#12121a',
+          700: '#1a1a2e',
+          600: '#222240',
+          500: '#2d2d4a',
+          400: '#3d3d5c',
+          300: '#5c5c7a',
+          200: '#8888a4',
+          100: '#b4b4cc',
         },
-        truthlens: {
-          blue: "#2563eb",
-          green: "#10b981",
-          red: "#ef4444",
-          yellow: "#f59e0b",
-          purple: "#8b5cf6",
+        accent: {
+          blue: '#4f8fff',
+          cyan: '#06d6a0',
+          red: '#ff4757',
+          amber: '#ffc048',
+          purple: '#a855f7',
         },
+        surface: {
+          primary: '#12121a',
+          secondary: '#1a1a2e',
+          tertiary: '#222240',
+          elevated: '#2d2d4a',
+        },
+      },
+      boxShadow: {
+        glow: '0 0 20px rgba(79, 143, 255, 0.15)',
+        'glow-sm': '0 0 10px rgba(79, 143, 255, 0.1)',
+        card: '0 4px 24px rgba(0, 0, 0, 0.4)',
+      },
+      animation: {
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
     },
   },
