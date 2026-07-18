@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { Shield, BookOpen, BarChart3, HelpCircle, Search, Camera, Accessibility, Globe, Mic, Menu, X } from 'lucide-react'
+import { Shield, BookOpen, BarChart3, HelpCircle, Search, Camera, Accessibility, Globe, Mic, Menu, X, MessageSquare } from 'lucide-react'
 import { useI18n } from '../hooks/useI18n'
 import { useVoice, speak } from '../hooks/useVoice'
 import { languages } from '../lib/i18n'
@@ -28,6 +28,7 @@ export default function Layout() {
   const navItems = [
     { to: '/analyze', icon: Search, label: t.nav.analyze },
     { to: '/image-detector', icon: Camera, label: 'Detect' },
+    { to: '/debates', icon: MessageSquare, label: 'Debates' },
     { to: '/learn', icon: BookOpen, label: t.nav.learn },
     { to: '/quiz', icon: HelpCircle, label: t.nav.quiz },
     { to: '/dashboard', icon: BarChart3, label: t.nav.dashboard },

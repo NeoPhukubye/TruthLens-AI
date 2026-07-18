@@ -7,6 +7,7 @@ import Learn from './pages/Learn'
 import Quiz from './pages/Quiz'
 import ImageDetector from './pages/ImageDetector'
 import Accessibility from './pages/Accessibility'
+import Debates from './pages/Debates'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="learn" element={<Learn />} />
         <Route path="quiz" element={<Quiz />} />
+        <Route path="debates" element={<Debates />} />
         <Route path="accessibility" element={<Accessibility />} />
       </Route>
     </Routes>
