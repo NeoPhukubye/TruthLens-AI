@@ -1,11 +1,9 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from openai import AsyncOpenAI
 
-from app.config import get_settings
+from app.services.ai_client import ai_json_request
 
 router = APIRouter()
-settings = get_settings()
 
 
 class FactCheckRequest(BaseModel):
@@ -14,11 +12,11 @@ class FactCheckRequest(BaseModel):
 
 class FactCheckResult(BaseModel):
     claim: str
-    verdict: str  # supported, unsupported, partially_supported, unverifiable
+    verdict: str
     confidence: float
     reasoning: str
     sources: list[str]
-    learn_more: str  # educational explanation
+    learn_more: str
 
 
 class FactCheckResponse(BaseModel):
@@ -27,8 +25,6 @@ class FactCheckResponse(BaseModel):
 
 @router.post("/", response_model=FactCheckResponse)
 async def fact_check(request: FactCheckRequest):
-    client = AsyncOpenAI(api_key=settings.ai_api_key, base_url=settings.ai_base_url)
-
     claims_text = "\n".join(f"- {c}" for c in request.claims)
     prompt = f"""Fact-check each of the following claims. For each claim:
 1. Determine if it's supported, unsupported, partially supported, or unverifiable
@@ -53,16 +49,8 @@ Respond in JSON:
   ]
 }}"""
 
-    response = await client.chat.completions.create(
-        model=settings.ai_model,
-        messages=[
-            {"role": "system", "content": "You are a fact-checking expert and educator. Verify claims against established knowledge and teach users how to verify information themselves. Always indicate your confidence level."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.2,
-        response_format={"type": "json_object"},
+    result = await ai_json_request(
+        system_prompt="You are a fact-checking expert and educator. Verify claims against established knowledge and teach users how to verify information themselves. Always indicate your confidence level.",
+        user_prompt=prompt,
     )
-
-    import json
-    result = json.loads(response.choices[0].message.content)
     return FactCheckResponse(**result)

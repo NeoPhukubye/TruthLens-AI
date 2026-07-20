@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Upload, Camera, CheckCircle, XCircle, AlertTriangle, Loader2, Info } from 'lucide-react'
 import { useI18n } from '../hooks/useI18n'
 import { speak } from '../hooks/useVoice'
+import { imagesApi, ApiError } from '../services/api'
 
 interface ImageResult {
   is_likely_ai_generated: boolean
@@ -41,15 +42,12 @@ export default function ImageDetector() {
     if (!file) return
     setLoading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/images/analyze', { method: 'POST', body: formData })
-      const data = await res.json()
-      setResult(data)
-      const verdict = data.is_likely_ai_generated ? t.imageDetector.aiGenerated : t.imageDetector.realPhoto
-      speak(`${verdict}. ${t.imageDetector.confidence}: ${Math.round(data.confidence * 100)}%.`, language)
-    } catch {
-      speak(t.common.error, language)
+      const res = await imagesApi.analyze(file)
+      setResult(res.data)
+      const verdict = res.data.is_likely_ai_generated ? t.imageDetector.aiGenerated : t.imageDetector.realPhoto
+      speak(`${verdict}. ${t.imageDetector.confidence}: ${Math.round(res.data.confidence * 100)}%.`, language)
+    } catch (e) {
+      speak(e instanceof ApiError ? e.message : t.common.error, language)
     } finally {
       setLoading(false)
     }

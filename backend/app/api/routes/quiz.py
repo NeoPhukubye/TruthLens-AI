@@ -1,15 +1,13 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from openai import AsyncOpenAI
 
-from app.config import get_settings
+from app.services.ai_client import ai_json_request
 
 router = APIRouter()
-settings = get_settings()
 
 
 class QuizRequest(BaseModel):
-    topic: str = "general"  # general, bias, sources, claims, images
+    topic: str = "general"
     difficulty: str = "medium"
 
 
@@ -32,8 +30,6 @@ class QuizResponse(BaseModel):
 
 @router.post("/generate", response_model=QuizResponse)
 async def generate_quiz(request: QuizRequest):
-    client = AsyncOpenAI(api_key=settings.ai_api_key, base_url=settings.ai_base_url)
-
     prompt = f"""Generate a media literacy quiz on topic: "{request.topic}"
 Difficulty: {request.difficulty}
 Generate 5 multiple-choice questions.
@@ -58,16 +54,9 @@ Respond in JSON:
   ]
 }}"""
 
-    response = await client.chat.completions.create(
-        model=settings.ai_model,
-        messages=[
-            {"role": "system", "content": "You are a media literacy quiz creator. Create engaging, educational questions that test critical thinking about information. Make questions realistic with headlines or scenarios users might actually encounter."},
-            {"role": "user", "content": prompt},
-        ],
+    result = await ai_json_request(
+        system_prompt="You are a media literacy quiz creator. Create engaging, educational questions that test critical thinking about information. Make questions realistic with headlines or scenarios users might actually encounter.",
+        user_prompt=prompt,
         temperature=0.7,
-        response_format={"type": "json_object"},
     )
-
-    import json
-    result = json.loads(response.choices[0].message.content)
     return QuizResponse(**result)

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Search, Shield, Eye, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react'
 import { useI18n } from '../hooks/useI18n'
 import { speak } from '../hooks/useVoice'
+import { analyzeApi, ApiError } from '../services/api'
 
 interface AnalysisResult {
   claims: { claim: string; importance: string }[]
@@ -18,21 +19,20 @@ export default function Analyze() {
   const [contentType, setContentType] = useState('article')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const handleAnalyze = async () => {
     if (!content.trim()) return
     setLoading(true)
+    setError(null)
     try {
-      const res = await fetch('/api/analyze/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, content_type: contentType }),
-      })
-      const data = await res.json()
-      setResult(data)
-      speak(`Analysis complete. Found ${data.claims.length} claims. ${data.summary}`, language)
-    } catch {
-      speak(t.common.error, language)
+      const res = await analyzeApi.analyze(content, contentType)
+      setResult(res.data)
+      speak(`Analysis complete. Found ${res.data.claims.length} claims. ${res.data.summary}`, language)
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : t.common.error
+      setError(message)
+      speak(message, language)
     } finally {
       setLoading(false)
     }
@@ -75,6 +75,11 @@ export default function Analyze() {
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           {loading ? t.analyze.analyzing : t.analyze.button}
         </button>
+        {error && (
+          <div className="mt-4 p-3 rounded-lg bg-accent-red/10 border border-accent-red/20 text-accent-red text-sm">
+            {error}
+          </div>
+        )}
       </div>
 
       {result && (

@@ -1,22 +1,20 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from openai import AsyncOpenAI
 
-from app.config import get_settings
+from app.services.ai_client import ai_json_request
 
 router = APIRouter()
-settings = get_settings()
 
 
 class AnalyzeRequest(BaseModel):
     content: str
-    content_type: str = "article"  # article, tweet, post, message, blog
+    content_type: str = "article"
     url: str | None = None
 
 
 class ClaimItem(BaseModel):
     claim: str
-    importance: str  # high, medium, low
+    importance: str
 
 
 class AnalyzeResponse(BaseModel):
@@ -31,8 +29,6 @@ class AnalyzeResponse(BaseModel):
 async def analyze_content(request: AnalyzeRequest):
     if not request.content.strip():
         raise HTTPException(status_code=400, detail="Content cannot be empty")
-
-    client = AsyncOpenAI(api_key=settings.ai_api_key, base_url=settings.ai_base_url)
 
     prompt = f"""Analyze the following {request.content_type} and extract:
 1. Main claims (with importance: high/medium/low)
@@ -53,16 +49,8 @@ Respond in JSON format:
   "summary": "..."
 }}"""
 
-    response = await client.chat.completions.create(
-        model=settings.ai_model,
-        messages=[
-            {"role": "system", "content": "You are a media literacy analyst. Extract factual claims and key information from content. Always respond in valid JSON."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.2,
-        response_format={"type": "json_object"},
+    result = await ai_json_request(
+        system_prompt="You are a media literacy analyst. Extract factual claims and key information from content. Always respond in valid JSON.",
+        user_prompt=prompt,
     )
-
-    import json
-    result = json.loads(response.choices[0].message.content)
     return AnalyzeResponse(**result)

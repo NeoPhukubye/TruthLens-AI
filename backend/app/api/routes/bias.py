@@ -1,11 +1,9 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from openai import AsyncOpenAI
 
-from app.config import get_settings
+from app.services.ai_client import ai_json_request
 
 router = APIRouter()
-settings = get_settings()
 
 
 class BiasRequest(BaseModel):
@@ -13,23 +11,21 @@ class BiasRequest(BaseModel):
 
 
 class BiasIndicator(BaseModel):
-    type: str  # political, emotional, sensationalism, propaganda, clickbait
-    severity: str  # high, medium, low
+    type: str
+    severity: str
     evidence: str
 
 
 class BiasResponse(BaseModel):
     overall_bias_score: float
     indicators: list[BiasIndicator]
-    political_leaning: str  # left, center-left, center, center-right, right, unknown
+    political_leaning: str
     emotional_tone: str
     recommendations: list[str]
 
 
 @router.post("/", response_model=BiasResponse)
 async def detect_bias(request: BiasRequest):
-    client = AsyncOpenAI(api_key=settings.ai_api_key, base_url=settings.ai_base_url)
-
     prompt = f"""Analyze this content for bias, emotional manipulation, and framing techniques.
 
 Content: {request.content}
@@ -50,16 +46,8 @@ Respond in JSON:
   "recommendations": ["suggestion for more balanced perspective"]
 }}"""
 
-    response = await client.chat.completions.create(
-        model=settings.ai_model,
-        messages=[
-            {"role": "system", "content": "You are a media bias detection expert. Identify bias, emotional manipulation, and framing techniques in content. Be specific with evidence."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.2,
-        response_format={"type": "json_object"},
+    result = await ai_json_request(
+        system_prompt="You are a media bias detection expert. Identify bias, emotional manipulation, and framing techniques in content. Be specific with evidence.",
+        user_prompt=prompt,
     )
-
-    import json
-    result = json.loads(response.choices[0].message.content)
     return BiasResponse(**result)

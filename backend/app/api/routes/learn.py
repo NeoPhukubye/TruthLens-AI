@@ -1,16 +1,14 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from openai import AsyncOpenAI
 
-from app.config import get_settings
+from app.services.ai_client import ai_json_request
 
 router = APIRouter()
-settings = get_settings()
 
 
 class LearnRequest(BaseModel):
-    topic: str  # e.g., "bias detection", "source verification", "image analysis"
-    level: str = "beginner"  # beginner, intermediate, advanced
+    topic: str
+    level: str = "beginner"
 
 
 class LessonStep(BaseModel):
@@ -33,8 +31,6 @@ class LearnResponse(BaseModel):
 
 @router.post("/lesson", response_model=LearnResponse)
 async def get_lesson(request: LearnRequest):
-    client = AsyncOpenAI(api_key=settings.ai_api_key, base_url=settings.ai_base_url)
-
     prompt = f"""Create an educational lesson on media literacy topic: "{request.topic}"
 Level: {request.level}
 
@@ -60,16 +56,9 @@ Respond in JSON:
   "practice_exercise": "An exercise the user can try right now"
 }}"""
 
-    response = await client.chat.completions.create(
-        model=settings.ai_model,
-        messages=[
-            {"role": "system", "content": "You are a media literacy educator. Create engaging, practical lessons that teach critical thinking skills. Make content age-appropriate and actionable."},
-            {"role": "user", "content": prompt},
-        ],
+    result = await ai_json_request(
+        system_prompt="You are a media literacy educator. Create engaging, practical lessons that teach critical thinking skills. Make content age-appropriate and actionable.",
+        user_prompt=prompt,
         temperature=0.5,
-        response_format={"type": "json_object"},
     )
-
-    import json
-    result = json.loads(response.choices[0].message.content)
     return LearnResponse(**result)

@@ -1,11 +1,9 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from openai import AsyncOpenAI
 
-from app.config import get_settings
+from app.services.ai_client import ai_json_request
 
 router = APIRouter()
-settings = get_settings()
 
 
 class CredibilityRequest(BaseModel):
@@ -29,8 +27,6 @@ class CredibilityResponse(BaseModel):
 
 @router.post("/", response_model=CredibilityResponse)
 async def check_credibility(request: CredibilityRequest):
-    client = AsyncOpenAI(api_key=settings.ai_api_key, base_url=settings.ai_base_url)
-
     prompt = f"""Evaluate the credibility of this content. Score each dimension from 0-100.
 
 Content: {request.content}
@@ -49,16 +45,8 @@ Respond in JSON:
   "confidence": 0-1.0 (your confidence in this assessment)
 }}"""
 
-    response = await client.chat.completions.create(
-        model=settings.ai_model,
-        messages=[
-            {"role": "system", "content": "You are a credibility assessment expert. Evaluate content based on source reliability, evidence quality, bias level, and manipulation risk. Be rigorous and explain your reasoning."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.2,
-        response_format={"type": "json_object"},
+    result = await ai_json_request(
+        system_prompt="You are a credibility assessment expert. Evaluate content based on source reliability, evidence quality, bias level, and manipulation risk. Be rigorous and explain your reasoning.",
+        user_prompt=prompt,
     )
-
-    import json
-    result = json.loads(response.choices[0].message.content)
     return CredibilityResponse(**result)
