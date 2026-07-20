@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { MessageSquare, Users, Flame, Plus, ArrowLeft, Send, Zap, AlertCircle, CheckCircle, Trophy, Clock } from 'lucide-react'
+import { debatesApi } from '../services/api'
 
 interface Debate {
   id: string

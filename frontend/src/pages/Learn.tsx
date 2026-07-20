@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BookOpen, ChevronRight, ArrowLeft } from 'lucide-react'
 import { useI18n } from '../hooks/useI18n'
+import { learnApi } from '../services/api'
 
 const topics = [
   { id: 'source-verification', title: 'Source Verification', description: 'Learn how to evaluate if a source is credible' },
@@ -21,15 +22,10 @@ export default function Learn() {
     setSelectedTopic(topicId)
     setLoading(true)
     try {
-      const res = await fetch('/api/learn/lesson', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: topicId, level: 'beginner' }),
-      })
-      const data = await res.json()
-      setLesson(data)
+      const res = await learnApi.getLesson(topicId)
+      setLesson(res.data)
     } catch {
-      console.error('Failed to load lesson')
+      setLesson(null)
     } finally {
       setLoading(false)
     }

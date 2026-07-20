@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { HelpCircle, CheckCircle, XCircle, Loader2, Trophy } from 'lucide-react'
+import { quizApi } from '../services/api'
 
 export default function Quiz() {
   const [topic, setTopic] = useState('general')
@@ -10,6 +11,7 @@ export default function Quiz() {
   const [score, setScore] = useState(0)
   const [finished, setFinished] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const startQuiz = async () => {
     setLoading(true)
@@ -17,16 +19,12 @@ export default function Quiz() {
     setCurrentQ(0)
     setSelected(null)
     setFinished(false)
+    setError(null)
     try {
-      const res = await fetch('/api/quiz/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, difficulty: 'medium' }),
-      })
-      const data = await res.json()
-      setQuestions(data.questions || [])
-    } catch {
-      console.error('Failed to load quiz')
+      const res = await quizApi.generate(topic)
+      setQuestions(res.data.questions || [])
+    } catch (e: any) {
+      setError(e.message || 'Failed to load quiz')
     } finally {
       setLoading(false)
     }
@@ -68,6 +66,9 @@ export default function Quiz() {
           {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
           {loading ? 'Generating...' : 'Start Quiz'}
         </button>
+        {error && (
+          <p className="mt-4 text-accent-red text-sm">{error}</p>
+        )}
       </div>
     )
   }
