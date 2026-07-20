@@ -1,15 +1,29 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.database.session import engine, Base
+from app.models.models import User, Analysis, QuizResult  # noqa: F401
 from app.api.routes import auth, analyze, credibility, bias, factcheck, images, sources, learn, quiz, debates
 
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create tables if they don't exist (dev convenience; use alembic in production)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
 
 app = FastAPI(
     title=settings.app_name,
     version=settings.version,
     description="Empowering youth to verify, understand, and critically evaluate digital information.",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

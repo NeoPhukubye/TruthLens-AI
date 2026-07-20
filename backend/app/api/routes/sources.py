@@ -1,9 +1,17 @@
-from fastapi import APIRouter
+from urllib.parse import urlparse
+
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.models.models import SourceRating
 
 router = APIRouter()
 
-SOURCE_RATINGS = {
+# Fallback data for when DB is unavailable or table is empty
+FALLBACK_RATINGS = {
     "bbc.com": {"name": "BBC", "score": 98, "category": "Public Broadcasting"},
     "reuters.com": {"name": "Reuters", "score": 99, "category": "Wire Service"},
     "apnews.com": {"name": "Associated Press", "score": 99, "category": "Wire Service"},
@@ -29,23 +37,48 @@ class SourceCheckResponse(BaseModel):
     recommendation: str
 
 
-@router.post("/check", response_model=SourceCheckResponse)
-async def check_source(request: SourceCheckRequest):
-    from urllib.parse import urlparse
+def _get_recommendation(score: int) -> str:
+    if score >= 85:
+        return "Highly trusted source"
+    if score >= 60:
+        return "Generally reliable, but verify important claims independently"
+    if score >= 40:
+        return "Use with caution - verify claims independently"
+    return "Low credibility source - cross-reference with trusted sources"
 
+
+@router.post("/check", response_model=SourceCheckResponse)
+async def check_source(request: SourceCheckRequest, db: AsyncSession = Depends(get_db)):
     parsed = urlparse(request.url)
     domain = parsed.netloc.replace("www.", "")
 
-    if domain in SOURCE_RATINGS:
-        info = SOURCE_RATINGS[domain]
-        recommendation = "Highly trusted source" if info["score"] >= 85 else "Use with caution - verify claims independently"
+    # Try database first
+    try:
+        result = await db.execute(select(SourceRating).where(SourceRating.domain == domain))
+        source = result.scalar_one_or_none()
+        if source:
+            return SourceCheckResponse(
+                domain=domain,
+                name=source.name,
+                score=source.score,
+                category=source.category,
+                is_known=True,
+                recommendation=_get_recommendation(source.score),
+            )
+    except Exception:
+        # DB unavailable, fall through to hardcoded lookup
+        pass
+
+    # Fallback to hardcoded ratings
+    if domain in FALLBACK_RATINGS:
+        info = FALLBACK_RATINGS[domain]
         return SourceCheckResponse(
             domain=domain,
             name=info["name"],
             score=info["score"],
             category=info["category"],
             is_known=True,
-            recommendation=recommendation,
+            recommendation=_get_recommendation(info["score"]),
         )
 
     return SourceCheckResponse(

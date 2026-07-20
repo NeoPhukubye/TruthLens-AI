@@ -23,16 +23,14 @@ class Analysis(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    content_type = Column(String, nullable=False)  # article, tweet, post, message
+    content_type = Column(String, nullable=False)
     original_content = Column(Text, nullable=False)
     source_url = Column(String, nullable=True)
 
-    # Scores
     credibility_score = Column(Float, nullable=True)
     bias_score = Column(Float, nullable=True)
     manipulation_score = Column(Float, nullable=True)
 
-    # Results stored as JSON text
     claims_json = Column(Text, nullable=True)
     bias_details_json = Column(Text, nullable=True)
     factcheck_json = Column(Text, nullable=True)
@@ -52,3 +50,14 @@ class QuizResult(Base):
     total_questions = Column(Integer, nullable=False)
     xp_earned = Column(Integer, default=0)
     completed_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SourceRating(Base):
+    __tablename__ = "source_ratings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    domain = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    score = Column(Integer, nullable=False)
+    category = Column(String, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
