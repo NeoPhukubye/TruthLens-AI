@@ -19,11 +19,10 @@ async def test_credibility_success(client, mock_ai_response):
         "confidence": 0.8
     })
 
-    with patch("app.services.ai_client.AsyncOpenAI") as mock_openai:
-        mock_client = AsyncMock()
-        mock_client.chat.completions.create.return_value = mock_ai_response(ai_result)
-        mock_openai.return_value = mock_client
+    mock_client = AsyncMock()
+    mock_client.chat.completions.create.return_value = mock_ai_response(ai_result)
 
+    with patch("app.services.ai_client.get_ai_client", return_value=mock_client):
         async with client:
             response = await client.post("/api/credibility/", json={
                 "content": "Breaking news article here."
@@ -44,11 +43,10 @@ async def test_bias_success(client, mock_ai_response):
         "recommendations": ["Seek opposing viewpoints"]
     })
 
-    with patch("app.services.ai_client.AsyncOpenAI") as mock_openai:
-        mock_client = AsyncMock()
-        mock_client.chat.completions.create.return_value = mock_ai_response(ai_result)
-        mock_openai.return_value = mock_client
+    mock_client = AsyncMock()
+    mock_client.chat.completions.create.return_value = mock_ai_response(ai_result)
 
+    with patch("app.services.ai_client.get_ai_client", return_value=mock_client):
         async with client:
             response = await client.post("/api/bias/", json={
                 "content": "This outrageous policy will destroy our economy!"
@@ -73,11 +71,10 @@ async def test_factcheck_success(client, mock_ai_response):
         }]
     })
 
-    with patch("app.services.ai_client.AsyncOpenAI") as mock_openai:
-        mock_client = AsyncMock()
-        mock_client.chat.completions.create.return_value = mock_ai_response(ai_result)
-        mock_openai.return_value = mock_client
+    mock_client = AsyncMock()
+    mock_client.chat.completions.create.return_value = mock_ai_response(ai_result)
 
+    with patch("app.services.ai_client.get_ai_client", return_value=mock_client):
         async with client:
             response = await client.post("/api/factcheck/", json={
                 "claims": ["Water boils at 100C"]

@@ -15,11 +15,10 @@ async def test_analyze_success(client, mock_ai_response):
         "summary": "Article discusses Earth's shape."
     })
 
-    with patch("app.services.ai_client.AsyncOpenAI") as mock_openai:
-        mock_client = AsyncMock()
-        mock_client.chat.completions.create.return_value = mock_ai_response(ai_result)
-        mock_openai.return_value = mock_client
+    mock_client = AsyncMock()
+    mock_client.chat.completions.create.return_value = mock_ai_response(ai_result)
 
+    with patch("app.services.ai_client.get_ai_client", return_value=mock_client):
         async with client:
             response = await client.post("/api/analyze/", json={
                 "content": "The earth is round according to scientists.",
@@ -45,12 +44,11 @@ async def test_analyze_empty_content(client):
 
 @pytest.mark.asyncio
 async def test_analyze_ai_unavailable(client):
-    with patch("app.services.ai_client.AsyncOpenAI") as mock_openai:
-        from openai import APIConnectionError
-        mock_client = AsyncMock()
-        mock_client.chat.completions.create.side_effect = APIConnectionError(request=MagicMock())
-        mock_openai.return_value = mock_client
+    from openai import APIConnectionError
+    mock_client = AsyncMock()
+    mock_client.chat.completions.create.side_effect = APIConnectionError(request=MagicMock())
 
+    with patch("app.services.ai_client.get_ai_client", return_value=mock_client):
         async with client:
             response = await client.post("/api/analyze/", json={
                 "content": "Some content to analyze",
@@ -58,3 +56,15 @@ async def test_analyze_ai_unavailable(client):
             })
             assert response.status_code == 503
             assert "unavailable" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_analyze_ai_not_configured(client):
+    """When AI API key is not set, should return 503."""
+    async with client:
+        response = await client.post("/api/analyze/", json={
+            "content": "Some content to analyze",
+            "content_type": "article"
+        })
+        assert response.status_code == 503
+        assert "not configured" in response.json()["detail"].lower()

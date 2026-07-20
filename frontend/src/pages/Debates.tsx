@@ -42,7 +42,6 @@ export default function Debates() {
   const [currentDebate, setCurrentDebate] = useState<Debate | null>(null)
   const [trending, setTrending] = useState<TrendingTopic[]>([])
   const [username, setUsername] = useState(() => localStorage.getItem('truthlens-username') || '')
-  const [showUsernameModal, setShowUsernameModal] = useState(false)
 
   useEffect(() => {
     fetchDebates()
