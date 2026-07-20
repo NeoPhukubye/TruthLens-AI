@@ -51,25 +51,24 @@ export default function Debates() {
 
   const fetchDebates = async () => {
     try {
-      const res = await fetch('/api/debates/list')
-      const data = await res.json()
-      setDebates(data)
+      const res = await debatesApi.list()
+      setDebates(res.data)
     } catch { /* ignore */ }
   }
 
   const fetchTrending = async () => {
     try {
-      const res = await fetch('/api/debates/trending/topics')
-      const data = await res.json()
-      setTrending(data.topics || [])
+      const res = await debatesApi.trending()
+      setTrending(res.data.topics || [])
     } catch { /* ignore */ }
   }
 
   const openDebate = async (id: string) => {
-    const res = await fetch(`/api/debates/${id}`)
-    const data = await res.json()
-    setCurrentDebate(data)
-    setView('debate')
+    try {
+      const res = await debatesApi.get(id)
+      setCurrentDebate(res.data)
+      setView('debate')
+    } catch { /* ignore */ }
   }
 
   if (!username) {
@@ -186,13 +185,8 @@ function CreateDebate({ onBack, onCreated, trending }: { onBack: () => void; onC
     if (!topic.trim()) return
     setLoading(true)
     try {
-      const res = await fetch('/api/debates/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, description, side_a_label: sideA, side_b_label: sideB }),
-      })
-      const data = await res.json()
-      onCreated(data)
+      const res = await debatesApi.create({ topic, description, side_a_label: sideA, side_b_label: sideB })
+      onCreated(res.data)
     } finally {
       setLoading(false)
     }
@@ -259,13 +253,8 @@ function DebateRoom({ debate, username, onBack, onUpdate }: { debate: Debate; us
   }, [debate.arguments.length])
 
   const joinSide = async (side: 'a' | 'b') => {
-    const res = await fetch(`/api/debates/${debate.id}/join`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, side }),
-    })
-    const data = await res.json()
-    onUpdate(data)
+    const res = await debatesApi.join(debate.id, username, side)
+    onUpdate(res.data)
     setMySide(side)
   }
 
@@ -273,13 +262,8 @@ function DebateRoom({ debate, username, onBack, onUpdate }: { debate: Debate; us
     if (!argument.trim() || !mySide) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/debates/${debate.id}/argue`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, side: mySide, argument }),
-      })
-      const newArg = await res.json()
-      onUpdate({ ...debate, arguments: [...debate.arguments, newArg] })
+      const res = await debatesApi.argue(debate.id, username, mySide, argument)
+      onUpdate({ ...debate, arguments: [...debate.arguments, res.data] })
       setArgument('')
     } finally {
       setLoading(false)
@@ -287,9 +271,8 @@ function DebateRoom({ debate, username, onBack, onUpdate }: { debate: Debate; us
   }
 
   const requestSummary = async () => {
-    const res = await fetch(`/api/debates/${debate.id}/summarize`, { method: 'POST' })
-    const data = await res.json()
-    setSummary(data)
+    const res = await debatesApi.summarize(debate.id)
+    setSummary(res.data)
   }
 
   return (
