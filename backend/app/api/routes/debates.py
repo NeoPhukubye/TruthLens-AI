@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from datetime import datetime
 import uuid
 
 from app.services.ai_client import ai_json_request
+from app.prompts import DEBATE_MODERATOR, DEBATE_SUMMARIZER
 
 router = APIRouter()
 
@@ -29,20 +30,55 @@ class PostArgumentRequest(BaseModel):
     argument: str
 
 
+class VoteRequest(BaseModel):
+    username: str
+    vote: str  # "up" or "down"
+
+
+class FactCheckResult(BaseModel):
+    quality_score: float
+    logical_fallacies: list[str]
+    factual_claims: list[str]
+    strength: str
+    feedback: str
+    fact_check_notes: str
+
+
+class ArgumentResponse(BaseModel):
+    id: str
+    username: str
+    side: str
+    argument: str
+    timestamp: str
+    fact_check: FactCheckResult | None = None
+    votes: dict[str, int] = {"up": 0, "down": 0}
+
+
 class DebateResponse(BaseModel):
     id: str
     topic: str
     description: str
     side_a_label: str
     side_b_label: str
-    participants: dict
-    arguments: list
+    participants: dict[str, list[str]]
+    arguments: list[ArgumentResponse]
     status: str
     created_at: str
     ai_moderation: list
+    argument_count: int = 0
 
 
-@router.post("/create")
+class DebateSummaryResponse(BaseModel):
+    summary: str
+    side_a_strongest: str
+    side_b_strongest: str
+    key_insights: list[str]
+    unresolved_questions: list[str]
+    winner: str
+    winner_reasoning: str
+
+
+@router.post("/create", response_model=DebateResponse)
 async def create_debate(request: CreateDebateRequest):
     debate_id = str(uuid.uuid4())[:8]
     debates[debate_id] = {
@@ -56,23 +92,40 @@ async def create_debate(request: CreateDebateRequest):
         "status": "active",
         "created_at": datetime.utcnow().isoformat(),
         "ai_moderation": [],
+        "argument_count": 0,
     }
     return debates[debate_id]
 
 
-@router.get("/list")
-async def list_debates():
-    return list(debates.values())
+@router.get("/list", response_model=list[DebateResponse])
+async def list_debates(status: str | None = Query(None, description="Filter by status: active or closed")):
+    result = list(debates.values())
+    if status:
+        result = [d for d in result if d["status"] == status]
+    return result
 
 
-@router.get("/{debate_id}")
+@router.get("/{debate_id}", response_model=DebateResponse)
 async def get_debate(debate_id: str):
     if debate_id not in debates:
         raise HTTPException(status_code=404, detail="Debate not found")
     return debates[debate_id]
 
 
-@router.post("/{debate_id}/join")
+@router.get("/{debate_id}/poll")
+async def poll_debate(debate_id: str, since: int = Query(0, description="Argument index to fetch from")):
+    """Polling endpoint - returns only new arguments since the given index."""
+    if debate_id not in debates:
+        raise HTTPException(status_code=404, detail="Debate not found")
+    debate = debates[debate_id]
+    return {
+        "arguments": debate["arguments"][since:],
+        "total_count": len(debate["arguments"]),
+        "status": debate["status"],
+    }
+
+
+@router.post("/{debate_id}/join", response_model=DebateResponse)
 async def join_debate(debate_id: str, request: JoinDebateRequest):
     if debate_id not in debates:
         raise HTTPException(status_code=404, detail="Debate not found")
@@ -84,12 +137,16 @@ async def join_debate(debate_id: str, request: JoinDebateRequest):
     return debate
 
 
-@router.post("/{debate_id}/argue")
+@router.post("/{debate_id}/argue", response_model=ArgumentResponse)
 async def post_argument(debate_id: str, request: PostArgumentRequest):
     if debate_id not in debates:
         raise HTTPException(status_code=404, detail="Debate not found")
     if debates[debate_id]["status"] != "active":
         raise HTTPException(status_code=400, detail="Debate is no longer active")
+    if request.side not in ("a", "b"):
+        raise HTTPException(status_code=400, detail="Side must be 'a' or 'b'")
+    if not request.argument.strip():
+        raise HTTPException(status_code=400, detail="Argument cannot be empty")
 
     debate = debates[debate_id]
     argument_entry = {
@@ -99,6 +156,7 @@ async def post_argument(debate_id: str, request: PostArgumentRequest):
         "argument": request.argument,
         "timestamp": datetime.utcnow().isoformat(),
         "fact_check": None,
+        "votes": {"up": 0, "down": 0},
     }
 
     side_label = debate["side_a_label"] if request.side == "a" else debate["side_b_label"]
@@ -118,24 +176,34 @@ Evaluate this argument. Respond in JSON:
 }}"""
 
     fact_check = await ai_json_request(
-        system_prompt="""You are a debate moderator focused on promoting critical thinking and factual accuracy.
-When a debater makes an argument, evaluate it for:
-1. Logical fallacies (ad hominem, straw man, false dichotomy, etc.)
-2. Factual claims that need verification
-3. Strength of reasoning
-4. Evidence quality
-
-Be constructive and educational. Help debaters improve their arguments.""",
+        system_prompt=DEBATE_MODERATOR,
         user_prompt=prompt,
         temperature=0.3,
     )
     argument_entry["fact_check"] = fact_check
 
     debate["arguments"].append(argument_entry)
+    debate["argument_count"] = len(debate["arguments"])
     return argument_entry
 
 
-@router.post("/{debate_id}/summarize")
+@router.post("/{debate_id}/arguments/{argument_id}/vote")
+async def vote_argument(debate_id: str, argument_id: str, request: VoteRequest):
+    if debate_id not in debates:
+        raise HTTPException(status_code=404, detail="Debate not found")
+    if request.vote not in ("up", "down"):
+        raise HTTPException(status_code=400, detail="Vote must be 'up' or 'down'")
+
+    debate = debates[debate_id]
+    for arg in debate["arguments"]:
+        if arg["id"] == argument_id:
+            arg["votes"][request.vote] += 1
+            return {"votes": arg["votes"]}
+
+    raise HTTPException(status_code=404, detail="Argument not found")
+
+
+@router.post("/{debate_id}/summarize", response_model=DebateSummaryResponse)
 async def summarize_debate(debate_id: str):
     if debate_id not in debates:
         raise HTTPException(status_code=404, detail="Debate not found")
@@ -169,15 +237,15 @@ Respond in JSON:
 }}"""
 
     summary = await ai_json_request(
-        system_prompt="You are a fair and balanced debate summarizer. Summarize both sides objectively and identify the strongest arguments from each. Promote critical thinking by highlighting what made arguments strong or weak.",
+        system_prompt=DEBATE_SUMMARIZER,
         user_prompt=prompt,
         temperature=0.3,
     )
     debate["ai_moderation"].append({"type": "summary", "content": summary, "timestamp": datetime.utcnow().isoformat()})
-    return summary
+    return DebateSummaryResponse(**summary)
 
 
-@router.post("/{debate_id}/close")
+@router.post("/{debate_id}/close", response_model=DebateResponse)
 async def close_debate(debate_id: str):
     if debate_id not in debates:
         raise HTTPException(status_code=404, detail="Debate not found")
