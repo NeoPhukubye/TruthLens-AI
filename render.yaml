@@ -46,7 +46,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          name: truthlens-api
-          type: web
-          property: hostport
+        sync: false  # Set manually to https://truthlens-api.onrender.com after deploy
