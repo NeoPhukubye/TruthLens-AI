@@ -22,9 +22,9 @@ services:
       - key: AI_API_KEY
         sync: false
       - key: AI_BASE_URL
-        value: https://api.fireworks.ai/inference/v1
+        value: https://generativelanguage.googleapis.com/v1beta/openai/
       - key: AI_MODEL
-        value: accounts/fireworks/models/llama-v3p1-70b-instruct
+        value: gemini-2.0-flash
       - key: DEBUG
         value: "false"
     healthCheckPath: /api/health

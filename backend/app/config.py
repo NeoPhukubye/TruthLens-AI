@@ -15,10 +15,10 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 
-    # AI Provider
+    # AI Provider (Google Gemini via OpenAI-compatible endpoint)
     ai_api_key: str = ""
-    ai_base_url: str = "https://api.fireworks.ai/inference/v1"
-    ai_model: str = "accounts/fireworks/models/llama-v3p1-70b-instruct"
+    ai_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    ai_model: str = "gemini-2.0-flash"
 
     class Config:
         env_file = ".env"
