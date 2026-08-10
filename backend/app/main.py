@@ -5,8 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database.session import engine, Base
-from app.models.models import User, Analysis, QuizResult  # noqa: F401
-from app.api.routes import auth, analyze, credibility, bias, factcheck, images, sources, learn, quiz, debates
+from app.models.models import User, Analysis, QuizResult, UserProgress, Debate, DebateArgument  # noqa: F401
+from app.api.routes import auth, analyze, credibility, bias, factcheck, images, sources, learn, quiz, debates, dashboard, gamification
 
 settings = get_settings()
 
