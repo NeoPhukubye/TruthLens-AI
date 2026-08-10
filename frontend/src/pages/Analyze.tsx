@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Search, Shield, Eye, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react'
+import ShareCard from '../components/ShareCard'
 import { useI18n } from '../hooks/useI18n'
 import { speak } from '../hooks/useVoice'
 import { analyzeApi, ApiError } from '../services/api'
@@ -11,6 +12,8 @@ interface AnalysisResult {
   entities: string[]
   statistics: string[]
   summary: string
+  mil_competency?: string
+  mil_competency_description?: string
 }
 
 export default function Analyze() {
@@ -91,6 +94,20 @@ export default function Analyze() {
             </h2>
             <p className="text-dark-100 leading-relaxed">{result.summary}</p>
           </div>
+
+          {/* MIL Competency */}
+          {result.mil_competency && (
+            <div className="card p-4 border-l-4 border-accent-purple bg-accent-purple/5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-accent-purple text-xs font-medium uppercase tracking-wider mb-1">UNESCO MIL Competency</p>
+                  <p className="text-white font-semibold">{result.mil_competency}</p>
+                  <p className="text-dark-200 text-sm mt-1">{result.mil_competency_description}</p>
+                </div>
+                <ShareCard title={result.summary.slice(0, 60)} summary={result.summary} type="Content Analysis" />
+              </div>
+            </div>
+          )}
 
           {/* Claims */}
           <div className="card p-6">

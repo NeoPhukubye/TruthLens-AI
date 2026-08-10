@@ -136,4 +136,27 @@ export const debatesApi = {
   },
 }
 
+// Dashboard
+export const dashboardApi = {
+  stats() {
+    return api.get('/dashboard/stats')
+  },
+  leaderboard() {
+    return api.get('/dashboard/leaderboard')
+  },
+}
+
+// Gamification
+export const gamificationApi = {
+  recordActivity(activity_type: string, xp_earned?: number) {
+    return api.post('/gamification/record-activity', { activity_type, xp_earned })
+  },
+  badges() {
+    return api.get('/gamification/badges')
+  },
+  xpRewards() {
+    return api.get('/gamification/xp-rewards')
+  },
+}
+
 export default api

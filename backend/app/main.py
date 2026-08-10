@@ -47,6 +47,8 @@ app.include_router(sources.router, prefix="/api/sources", tags=["Source Quality"
 app.include_router(learn.router, prefix="/api/learn", tags=["Learn Mode"])
 app.include_router(quiz.router, prefix="/api/quiz", tags=["Quiz Mode"])
 app.include_router(debates.router, prefix="/api/debates", tags=["Live Debates"])
+app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
+app.include_router(gamification.router, prefix="/api/gamification", tags=["Gamification"])
 
 
 @app.get("/api/health")
