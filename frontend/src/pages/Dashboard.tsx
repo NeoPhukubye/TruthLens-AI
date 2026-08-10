@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { TrendingUp, Shield, BookOpen, AlertTriangle, Trophy, Flame, Star, Award, Loader2, Users } from 'lucide-react'
+import { Shield, BookOpen, AlertTriangle, Trophy, Flame, Star, Award, Loader2, Users } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import api from '../services/api'
