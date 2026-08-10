@@ -13,6 +13,10 @@ from app.models.models import Debate, DebateArgument
 
 router = APIRouter()
 
+# In-memory fallback when no database is configured
+_memory_debates: dict[str, dict] = {}
+_memory_arguments: dict[str, list[dict]] = {}
+
 
 class CreateDebateRequest(BaseModel):
     topic: str
@@ -112,6 +116,18 @@ def debate_to_response(debate: Debate, arguments: list[DebateArgument]) -> dict:
 @router.post("/create", response_model=DebateResponse)
 async def create_debate(request: CreateDebateRequest, db: AsyncSession = Depends(get_db)):
     debate_id = str(uuid.uuid4())[:8]
+    
+    if db is None:
+        # In-memory fallback
+        _memory_debates[debate_id] = {
+            "id": debate_id, "topic": request.topic, "description": request.description,
+            "side_a_label": request.side_a_label, "side_b_label": request.side_b_label,
+            "participants": {"a": [], "b": []}, "status": "active",
+            "created_at": datetime.utcnow().isoformat(),
+        }
+        _memory_arguments[debate_id] = []
+        return {**_memory_debates[debate_id], "arguments": [], "ai_moderation": [], "argument_count": 0}
+    
     debate = Debate(
         id=debate_id,
         topic=request.topic,
@@ -127,6 +143,14 @@ async def create_debate(request: CreateDebateRequest, db: AsyncSession = Depends
 
 @router.get("/list", response_model=list[DebateResponse])
 async def list_debates(status: str | None = Query(None), db: AsyncSession = Depends(get_db)):
+    if db is None:
+        result = list(_memory_debates.values())
+        if status:
+            result = [d for d in result if d["status"] == status]
+        return [
+            {**d, "arguments": _memory_arguments.get(d["id"], []), "ai_moderation": [], "argument_count": len(_memory_arguments.get(d["id"], []))}
+            for d in result
+        ]
     query = select(Debate)
     if status:
         query = query.where(Debate.status == status)
@@ -145,6 +169,11 @@ async def list_debates(status: str | None = Query(None), db: AsyncSession = Depe
 
 @router.get("/{debate_id}", response_model=DebateResponse)
 async def get_debate(debate_id: str, db: AsyncSession = Depends(get_db)):
+    if db is None:
+        if debate_id not in _memory_debates:
+            raise HTTPException(status_code=404, detail="Debate not found")
+        d = _memory_debates[debate_id]
+        return {**d, "arguments": _memory_arguments.get(debate_id, []), "ai_moderation": [], "argument_count": len(_memory_arguments.get(debate_id, []))}
     result = await db.execute(select(Debate).where(Debate.id == debate_id))
     debate = result.scalar_one_or_none()
     if not debate:
@@ -158,6 +187,11 @@ async def get_debate(debate_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.get("/{debate_id}/poll")
 async def poll_debate(debate_id: str, since: int = Query(0), db: AsyncSession = Depends(get_db)):
+    if db is None:
+        if debate_id not in _memory_debates:
+            raise HTTPException(status_code=404, detail="Debate not found")
+        args = _memory_arguments.get(debate_id, [])
+        return {"arguments": args[since:], "total_count": len(args), "status": _memory_debates[debate_id]["status"]}
     result = await db.execute(select(Debate).where(Debate.id == debate_id))
     debate = result.scalar_one_or_none()
     if not debate:
@@ -183,6 +217,15 @@ async def poll_debate(debate_id: str, since: int = Query(0), db: AsyncSession = 
 
 @router.post("/{debate_id}/join", response_model=DebateResponse)
 async def join_debate(debate_id: str, request: JoinDebateRequest, db: AsyncSession = Depends(get_db)):
+    if db is None:
+        if debate_id not in _memory_debates:
+            raise HTTPException(status_code=404, detail="Debate not found")
+        if request.side not in ("a", "b"):
+            raise HTTPException(status_code=400, detail="Side must be 'a' or 'b'")
+        d = _memory_debates[debate_id]
+        if request.username not in d["participants"][request.side]:
+            d["participants"][request.side].append(request.username)
+        return {**d, "arguments": _memory_arguments.get(debate_id, []), "ai_moderation": [], "argument_count": len(_memory_arguments.get(debate_id, []))}
     result = await db.execute(select(Debate).where(Debate.id == debate_id))
     debate = result.scalar_one_or_none()
     if not debate:
@@ -206,19 +249,28 @@ async def join_debate(debate_id: str, request: JoinDebateRequest, db: AsyncSessi
 
 @router.post("/{debate_id}/argue", response_model=ArgumentResponse)
 async def post_argument(debate_id: str, request: PostArgumentRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Debate).where(Debate.id == debate_id))
-    debate = result.scalar_one_or_none()
-    if not debate:
-        raise HTTPException(status_code=404, detail="Debate not found")
-    if debate.status != "active":
-        raise HTTPException(status_code=400, detail="Debate is no longer active")
+    if db is None:
+        if debate_id not in _memory_debates:
+            raise HTTPException(status_code=404, detail="Debate not found")
+        debate_data = _memory_debates[debate_id]
+        if debate_data["status"] != "active":
+            raise HTTPException(status_code=400, detail="Debate is no longer active")
+    else:
+        result = await db.execute(select(Debate).where(Debate.id == debate_id))
+        debate_obj = result.scalar_one_or_none()
+        if not debate_obj:
+            raise HTTPException(status_code=404, detail="Debate not found")
+        if debate_obj.status != "active":
+            raise HTTPException(status_code=400, detail="Debate is no longer active")
+        debate_data = {"topic": debate_obj.topic, "side_a_label": debate_obj.side_a_label, "side_b_label": debate_obj.side_b_label}
+
     if request.side not in ("a", "b"):
         raise HTTPException(status_code=400, detail="Side must be 'a' or 'b'")
     if not request.argument.strip():
         raise HTTPException(status_code=400, detail="Argument cannot be empty")
 
-    side_label = debate.side_a_label if request.side == "a" else debate.side_b_label
-    prompt = f"""Debate topic: "{debate.topic}"
+    side_label = debate_data["side_a_label"] if request.side == "a" else debate_data["side_b_label"]
+    prompt = f"""Debate topic: "{debate_data['topic']}"
 This argument is from the "{side_label}" side.
 
 Argument: "{request.argument}"
@@ -240,26 +292,30 @@ Evaluate this argument. Respond in JSON:
     )
 
     arg_id = str(uuid.uuid4())[:8]
+    now = datetime.utcnow().isoformat()
+
+    if db is None:
+        arg_entry = {
+            "id": arg_id, "username": request.username, "side": request.side,
+            "argument": request.argument, "timestamp": now,
+            "fact_check": fact_check, "votes": {"up": 0, "down": 0},
+        }
+        _memory_arguments.setdefault(debate_id, []).append(arg_entry)
+        return arg_entry
+
     db_arg = DebateArgument(
-        id=arg_id,
-        debate_id=debate_id,
-        username=request.username,
-        side=request.side,
-        argument=request.argument,
+        id=arg_id, debate_id=debate_id, username=request.username,
+        side=request.side, argument=request.argument,
         fact_check_json=json.dumps(fact_check),
     )
     db.add(db_arg)
     await db.commit()
     await db.refresh(db_arg)
-
     return {
-        "id": arg_id,
-        "username": request.username,
-        "side": request.side,
+        "id": arg_id, "username": request.username, "side": request.side,
         "argument": request.argument,
-        "timestamp": db_arg.created_at.isoformat() if db_arg.created_at else datetime.utcnow().isoformat(),
-        "fact_check": fact_check,
-        "votes": {"up": 0, "down": 0},
+        "timestamp": db_arg.created_at.isoformat() if db_arg.created_at else now,
+        "fact_check": fact_check, "votes": {"up": 0, "down": 0},
     }
 
 
@@ -267,6 +323,12 @@ Evaluate this argument. Respond in JSON:
 async def vote_argument(debate_id: str, argument_id: str, request: VoteRequest, db: AsyncSession = Depends(get_db)):
     if request.vote not in ("up", "down"):
         raise HTTPException(status_code=400, detail="Vote must be 'up' or 'down'")
+    if db is None:
+        for arg in _memory_arguments.get(debate_id, []):
+            if arg["id"] == argument_id:
+                arg["votes"][request.vote] += 1
+                return {"votes": arg["votes"]}
+        raise HTTPException(status_code=404, detail="Argument not found")
     result = await db.execute(select(DebateArgument).where(DebateArgument.id == argument_id, DebateArgument.debate_id == debate_id))
     arg = result.scalar_one_or_none()
     if not arg:
@@ -281,29 +343,43 @@ async def vote_argument(debate_id: str, argument_id: str, request: VoteRequest, 
 
 @router.post("/{debate_id}/summarize", response_model=DebateSummaryResponse)
 async def summarize_debate(debate_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Debate).where(Debate.id == debate_id))
-    debate = result.scalar_one_or_none()
-    if not debate:
-        raise HTTPException(status_code=404, detail="Debate not found")
-
-    args_result = await db.execute(
-        select(DebateArgument).where(DebateArgument.debate_id == debate_id).order_by(DebateArgument.created_at)
-    )
-    all_args = args_result.scalars().all()
-    if not all_args:
-        raise HTTPException(status_code=400, detail="No arguments to summarize")
-
-    side_a_args = [a.argument for a in all_args if a.side == "a"]
-    side_b_args = [a.argument for a in all_args if a.side == "b"]
+    if db is None:
+        if debate_id not in _memory_debates:
+            raise HTTPException(status_code=404, detail="Debate not found")
+        all_args = _memory_arguments.get(debate_id, [])
+        if not all_args:
+            raise HTTPException(status_code=400, detail="No arguments to summarize")
+        debate_data = _memory_debates[debate_id]
+        side_a_args = [a["argument"] for a in all_args if a["side"] == "a"]
+        side_b_args = [a["argument"] for a in all_args if a["side"] == "b"]
+        topic = debate_data["topic"]
+        side_a_label = debate_data["side_a_label"]
+        side_b_label = debate_data["side_b_label"]
+    else:
+        result = await db.execute(select(Debate).where(Debate.id == debate_id))
+        debate = result.scalar_one_or_none()
+        if not debate:
+            raise HTTPException(status_code=404, detail="Debate not found")
+        args_result = await db.execute(
+            select(DebateArgument).where(DebateArgument.debate_id == debate_id).order_by(DebateArgument.created_at)
+        )
+        all_args = args_result.scalars().all()
+        if not all_args:
+            raise HTTPException(status_code=400, detail="No arguments to summarize")
+        side_a_args = [a.argument for a in all_args if a.side == "a"]
+        side_b_args = [a.argument for a in all_args if a.side == "b"]
+        topic = debate.topic
+        side_a_label = debate.side_a_label
+        side_b_label = debate.side_b_label
 
     prompt = f"""Summarize this debate.
 
-Topic: "{debate.topic}"
+Topic: "{topic}"
 
-{debate.side_a_label} arguments:
+{side_a_label} arguments:
 {chr(10).join(f'- {a}' for a in side_a_args)}
 
-{debate.side_b_label} arguments:
+{side_b_label} arguments:
 {chr(10).join(f'- {a}' for a in side_b_args)}
 
 Respond in JSON:
@@ -327,6 +403,12 @@ Respond in JSON:
 
 @router.post("/{debate_id}/close", response_model=DebateResponse)
 async def close_debate(debate_id: str, db: AsyncSession = Depends(get_db)):
+    if db is None:
+        if debate_id not in _memory_debates:
+            raise HTTPException(status_code=404, detail="Debate not found")
+        _memory_debates[debate_id]["status"] = "closed"
+        d = _memory_debates[debate_id]
+        return {**d, "arguments": _memory_arguments.get(debate_id, []), "ai_moderation": [], "argument_count": len(_memory_arguments.get(debate_id, []))}
     result = await db.execute(select(Debate).where(Debate.id == debate_id))
     debate = result.scalar_one_or_none()
     if not debate:
