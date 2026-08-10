@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Shield, Search, BookOpen, HelpCircle, BarChart3, Eye, Camera, Accessibility, ArrowRight, Zap } from 'lucide-react'
+import { Shield, Search, BookOpen, HelpCircle, BarChart3, Eye, Camera, Accessibility, ArrowRight, Zap, GitCompare } from 'lucide-react'
 import { useI18n } from '../hooks/useI18n'
 
 export default function Home() {
@@ -9,6 +9,7 @@ export default function Home() {
   const features = [
     { icon: Search, title: 'Claim Analyzer', description: 'AI-powered extraction of claims, facts, and entities from any content', link: '/analyze', color: 'accent-blue' },
     { icon: Camera, title: 'AI Image Detector', description: 'Forensic analysis to distinguish AI-generated images from real photographs', link: '/image-detector', color: 'accent-purple' },
+    { icon: GitCompare, title: 'Image Forensics', description: 'Compare images side-by-side to detect manipulation, cropping, and deepfake alterations', link: '/image-compare', color: 'accent-red' },
     { icon: Shield, title: 'Credibility Score', description: 'Multi-dimensional scoring across source reliability, evidence, and manipulation', link: '/analyze', color: 'accent-cyan' },
     { icon: Eye, title: 'Bias Detector', description: 'Identify political bias, emotional manipulation, and propaganda techniques', link: '/analyze', color: 'accent-amber' },
     { icon: BookOpen, title: 'Learn Mode', description: 'Understand WHY something is misleading — not just that it is', link: '/learn', color: 'accent-cyan' },
@@ -19,8 +20,8 @@ export default function Home() {
 
   const stats = [
     { value: '6+', label: 'Languages' },
-    { value: '4', label: 'Sign Languages' },
-    { value: '9', label: 'Analysis Tools' },
+    { value: '10+', label: 'Analysis Tools' },
+    { value: 'Live', label: 'Debates' },
     { value: '∞', label: 'Critical Thinkers' },
   ]
 

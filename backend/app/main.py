@@ -34,6 +34,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.middleware.rate_limit import RateLimitMiddleware
+app.add_middleware(RateLimitMiddleware, requests_per_minute=30)
+
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(analyze.router, prefix="/api/analyze", tags=["Claim Analyzer"])
 app.include_router(credibility.router, prefix="/api/credibility", tags=["Credibility Score"])

@@ -155,8 +155,9 @@ export default function Accessibility() {
 
         <div className="mt-6 p-4 rounded-lg bg-accent-purple/5 border border-accent-purple/20">
           <p className="text-sm text-dark-100">
-            <strong className="text-accent-purple">Note:</strong> Full sign language video tutorials are in development.
-            Community contributors for ASL, BSL, SASL, and International Sign are welcome.
+            <strong className="text-accent-purple">Community-Powered:</strong> TruthLens uses text descriptions for sign language guidance. 
+            We're partnering with Deaf communities worldwide to create authentic video content. 
+            Want to contribute? Contact us through the UNESCO MIL network.
           </p>
         </div>
       </section>
