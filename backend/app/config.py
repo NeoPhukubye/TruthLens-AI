@@ -7,8 +7,8 @@ class Settings(BaseSettings):
     debug: bool = False
     version: str = "0.1.0"
 
-    # Database
-    database_url: str = "postgresql+asyncpg://truthlens:truthlens@localhost:5432/truthlens"
+    # Database (optional - leave empty to run without DB)
+    database_url: str = ""
 
     # JWT
     secret_key: str = "change-me-in-production"

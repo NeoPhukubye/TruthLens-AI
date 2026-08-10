@@ -1,22 +1,11 @@
-databases:
-  - name: truthlens-db
-    plan: free
-    databaseName: truthlens
-    user: truthlens
-
 services:
   # Backend API
   - type: web
     name: truthlens-api
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    rootDir: backend
     plan: free
     envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: truthlens-db
-          property: connectionString
       - key: SECRET_KEY
         generateValue: true
       - key: AI_API_KEY
@@ -46,4 +35,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        sync: false  # Set manually to https://truthlens-api.onrender.com after deploy
+        sync: false
