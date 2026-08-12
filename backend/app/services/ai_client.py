@@ -47,7 +47,7 @@ async def ai_json_request(
         raise HTTPException(status_code=429, detail="Service is busy. Please wait a moment and try again.")
     except APIStatusError as e:
         logger.error(f"AI provider error: {e.status_code} - {e.message}")
-        raise HTTPException(status_code=502, detail="AI service returned an error. Please try again.")
+        raise HTTPException(status_code=502, detail=f"AI service error ({e.status_code}): {e.message}")
     except Exception as e:
         logger.error(f"Unexpected AI error: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred during analysis.")
