@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Shield, Eye, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react'
+import { Search, Shield, Eye, CheckCircle, AlertTriangle, Loader2, XCircle, HelpCircle } from 'lucide-react'
 import ShareCard from '../components/ShareCard'
 import { useI18n } from '../hooks/useI18n'
 import { speak } from '../hooks/useVoice'
-import { analyzeApi, ApiError } from '../services/api'
+import { analyzeApi, factcheckApi, ApiError } from '../services/api'
 
 interface AnalysisResult {
   claims: { claim: string; importance: string }[]
@@ -16,28 +16,74 @@ interface AnalysisResult {
   mil_competency_description?: string
 }
 
+interface FactCheckResult {
+  claim: string
+  verdict: string
+  confidence: number
+  reasoning: string
+  sources: string[]
+  learn_more: string
+}
+
 export default function Analyze() {
   const { t, language } = useI18n()
   const [content, setContent] = useState('')
   const [contentType, setContentType] = useState('article')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [factResults, setFactResults] = useState<FactCheckResult[]>([])
+  const [factLoading, setFactLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleAnalyze = async () => {
     if (!content.trim()) return
     setLoading(true)
     setError(null)
+    setFactResults([])
     try {
       const res = await analyzeApi.analyze(content, contentType)
       setResult(res.data)
-      speak(`Analysis complete. Found ${res.data.claims.length} claims. ${res.data.summary}`, language)
+      speak(`Analysis complete. Found ${res.data.claims.length} claims. Now verifying...`, language)
+
+      // Automatically fact-check extracted claims
+      if (res.data.claims.length > 0) {
+        setFactLoading(true)
+        try {
+          const claims = res.data.claims.map((c: { claim: string }) => c.claim)
+          const factRes = await factcheckApi.check(claims)
+          setFactResults(factRes.data.results)
+          const verdicts = factRes.data.results.map((r: FactCheckResult) => r.verdict).join(', ')
+          speak(`Verification complete. Verdicts: ${verdicts}`, language)
+        } catch {
+          // Non-critical: show analysis even if fact-check fails
+        } finally {
+          setFactLoading(false)
+        }
+      }
     } catch (e) {
       const message = e instanceof ApiError ? e.message : t.common.error
       setError(message)
       speak(message, language)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const getVerdictStyle = (verdict: string) => {
+    switch (verdict) {
+      case 'supported': return { bg: 'bg-green-500/10 border-green-500/20', text: 'text-green-400', label: 'Supported' }
+      case 'unsupported': return { bg: 'bg-red-500/10 border-red-500/20', text: 'text-red-400', label: 'Unsupported' }
+      case 'partially_supported': return { bg: 'bg-amber-500/10 border-amber-500/20', text: 'text-amber-400', label: 'Partially Supported' }
+      default: return { bg: 'bg-gray-500/10 border-gray-500/20', text: 'text-gray-400', label: 'Unverifiable' }
+    }
+  }
+
+  const getVerdictIcon = (verdict: string) => {
+    switch (verdict) {
+      case 'supported': return <CheckCircle className="h-5 w-5 text-green-400" />
+      case 'unsupported': return <XCircle className="h-5 w-5 text-red-400" />
+      case 'partially_supported': return <AlertTriangle className="h-5 w-5 text-amber-400" />
+      default: return <HelpCircle className="h-5 w-5 text-gray-400" />
     }
   }
 
