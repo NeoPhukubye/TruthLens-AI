@@ -34,11 +34,12 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:3000",
+        "https://neophukubye.github.io",
         os.getenv("FRONTEND_URL", ""),
         # Allow any Render subdomain
         "https://*.onrender.com",
     ],
-    allow_origin_regex=r"https://.*\.onrender\.com",
+    allow_origin_regex=r"https://.*\.onrender\.com|https://neophukubye\.github\.io",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
