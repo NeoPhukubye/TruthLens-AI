@@ -155,23 +155,50 @@ export default function Analyze() {
             </div>
           )}
 
-          {/* Claims */}
+          {/* Claims & Verification */}
           <div className="card p-6">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-accent-cyan" /> Claims Extracted
+              <CheckCircle className="h-5 w-5 text-accent-cyan" /> Claims Verification
               <span className="badge-blue ml-auto">{result.claims.length} found</span>
+              {factLoading && <Loader2 className="h-4 w-4 animate-spin text-accent-blue" />}
             </h2>
-            <div className="space-y-3">
-              {result.claims.map((c, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-dark-700/50">
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium mt-0.5 ${
-                    c.importance === 'high' ? 'badge-red' : c.importance === 'medium' ? 'badge-amber' : 'bg-dark-500 text-dark-100'
-                  }`}>
-                    {c.importance}
-                  </span>
-                  <span className="text-dark-100 text-sm">{c.claim}</span>
-                </div>
-              ))}
+            <div className="space-y-4">
+              {result.claims.map((c, i) => {
+                const factResult = factResults.find(f => f.claim === c.claim) || factResults[i]
+                const verdict = factResult ? getVerdictStyle(factResult.verdict) : null
+                return (
+                  <div key={i} className={`p-4 rounded-lg border ${verdict ? verdict.bg : 'bg-dark-700/50 border-dark-600'}`}>
+                    <div className="flex items-start gap-3">
+                      {factResult ? getVerdictIcon(factResult.verdict) : (
+                        factLoading ? <Loader2 className="h-5 w-5 animate-spin text-dark-300" /> :
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                          c.importance === 'high' ? 'badge-red' : c.importance === 'medium' ? 'badge-amber' : 'bg-dark-500 text-dark-100'
+                        }`}>{c.importance}</span>
+                      )}
+                      <div className="flex-1">
+                        <p className="text-white text-sm font-medium">{c.claim}</p>
+                        {factResult && (
+                          <div className="mt-2 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs font-bold uppercase ${verdict!.text}`}>{verdict!.label}</span>
+                              <span className="text-dark-300 text-xs">({Math.round(factResult.confidence * 100)}% confidence)</span>
+                            </div>
+                            <p className="text-dark-200 text-sm">{factResult.reasoning}</p>
+                            {factResult.sources.length > 0 && (
+                              <div className="text-xs text-dark-300">
+                                <span className="font-medium">Sources:</span> {factResult.sources.join(', ')}
+                              </div>
+                            )}
+                            {factResult.learn_more && (
+                              <p className="text-xs text-accent-blue/80 italic mt-1">{factResult.learn_more}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
 
