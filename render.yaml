@@ -13,7 +13,7 @@ services:
       - key: AI_BASE_URL
         value: https://generativelanguage.googleapis.com/v1beta/openai/
       - key: AI_MODEL
-        value: gemini-2.0-flash
+        value: gemini-2.5-flash
       - key: DEBUG
         value: "false"
     healthCheckPath: /api/health
