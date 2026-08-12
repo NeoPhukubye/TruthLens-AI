@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # AI Provider (Google Gemini via OpenAI-compatible endpoint)
     ai_api_key: str = ""
     ai_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
-    ai_model: str = "gemini-2.0-flash"
+    ai_model: str = "gemini-2.5-flash"
 
     class Config:
         env_file = ".env"
